@@ -187,4 +187,14 @@
     <string name="a11y_overlay_recording_stopped">Gotowy do nagrywania</string>
     <string name="a11y_overlay_drag_handle">Naciśnij i przytrzymaj a następnie przeciągnij aby przesunąć nakładkę</string>
     <string name="a11y_contact_photo">Zdjęcie %1$s</string>
+    <string name="settings_audio_allow_playback_api">Zezwalaj na przechwytywanie za pośrednictwem interfejsu Playback API</string>
+    <string name="settings_audio_allow_playback_api_desc">W przypadku wykrycia połączenia VoIP lub Wi-Fi Calling, wybrane źródła sygnału przychodzącego/wychodzącego są zastępowane przechwytywaniem odtwarzanego dźwięku lub innym równoważnym źródłem co pozwala na próbę zarejestrowania dźwięku.</string>
+    <string name="audio_source_voice_recognition_description">Źródło dźwięku z mikrofonu dostrojone pod kątem rozpoznawania głosu.</string>
+    <string name="audio_source_remote_submix_description">Rejestruje dźwięk dokładnie w takiej postac w jakiej jest on przesyłany do głośników. Urządzenie przestanie wydawać dźwięki.</string>
+    <string name="audio_source_uplink_downlink_description">Rejestruje obie strony rozmowy telefonicznej (łącząc sygnał wychodzący i przychodzący) bez żadnych dźwięków sygnalizacyjnych.</string>
+    <string name="audio_source_mic_voice_communication_downlink_description">Rejestruje obie strony rozmowy telefonicznej (łącząc sygnał z mikrofonu oraz sygnał przychodzący) bez żadnych dodatkowych dźwięków telefonicznych.</string>
+    <string name="audio_source_mic_voice_recognition_downlink_description">Rejestruje obie strony rozmowy telefonicznej (łącząc sygnał z mikrofonu oraz sygnał przychodzący) bez żadnych dźwięków sygnalizacyjnych.</string>
+    <string name="recording_error_cannot_reach_binder">Nie udało się rozpocząć nagrywania. Wystąpił błąd podczas wywoływania ShellService.</string>
+    <string name="recording_failure_capture_start_failed">Podczas rozpoczynania rejestracji dźwięku wystąpił błąd.</string>
+    <string name="recording_failure_capture_read_failed">Wystąpił błąd podczas odczytu i przetwarzania zarejestrowanego dźwięku.</string>
 </resources>
