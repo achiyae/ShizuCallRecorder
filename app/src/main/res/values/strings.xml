@@ -208,6 +208,8 @@
     <string name="settings_ignore_contacts_selected">Ignore selected contacts</string>
     <string name="settings_ignore_contacts_record_only_selected">Record only selected contacts</string>
     <string name="settings_select_contacts">Select contacts (%1$d)</string>
+    <string name="settings_add_contacts">Add contacts</string>
+    <string name="settings_remove_contact">Remove %1$s</string>
     <string name="settings_select_contacts_incoming">Select incoming contacts</string>
     <string name="settings_select_contacts_outgoing">Select outgoing contacts</string>
 

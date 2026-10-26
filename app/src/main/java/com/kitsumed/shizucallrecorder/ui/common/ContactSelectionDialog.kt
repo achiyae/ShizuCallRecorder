@@ -113,9 +113,15 @@ fun ContactSelectionContent(
         mutableStateListOf<String>().apply { addAll(initialSelection) }
     }
 
-    val filteredContacts = remember(searchQuery, contacts) {
-        if (searchQuery.isBlank()) contacts
-        else contacts.filter {
+    // Contacts selected when the dialog opened are listed first. Keyed on initialSelection (not the live
+    // selection) so rows don't jump around while the user toggles them.
+    val orderedContacts = remember(contacts, initialSelection) {
+        ContactListUtils.selectedFirst(contacts, initialSelection)
+    }
+
+    val filteredContacts = remember(searchQuery, orderedContacts) {
+        if (searchQuery.isBlank()) orderedContacts
+        else orderedContacts.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.displayNumbers.contains(searchQuery)
         }
@@ -286,7 +292,7 @@ private fun ContactListItem(
  * @param contact The contact whose avatar to render.
  */
 @Composable
-private fun ContactAvatar(contact: ContactEntry) {
+internal fun ContactAvatar(contact: ContactEntry) {
     val context = LocalContext.current
 
     // produceState launches the image decode in the background and updates the state value

@@ -33,6 +33,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import com.kitsumed.shizucallrecorder.ui.viewmodels.SelectedContacts
+import com.kitsumed.shizucallrecorder.ui.viewmodels.ContactEntry
+import com.kitsumed.shizucallrecorder.ui.common.ContactAvatar
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Key
@@ -113,6 +117,7 @@ fun SettingsScreen(
     // ContactPickerViewModel owns the contact-loading logic and dialog state.
     val contactPickerViewModel: ContactPickerViewModel = viewModel()
     val contactPickerState by contactPickerViewModel.contactPickerState.collectAsState()
+    val selectedContacts by contactPickerViewModel.selectedContacts.collectAsState()
 
     // Folder picker — PersistentFolderPickerContract keeps access alive after a reboot.
     val folderPickerLauncher = rememberLauncherForActivityResult(PersistentFolderPickerContract()) { uri ->
@@ -135,6 +140,7 @@ fun SettingsScreen(
         updateTrigger = updateTrigger,
         actions = viewModel,
         contactPickerState = contactPickerState,
+        selectedContacts = selectedContacts,
         onSelectFolder = { folderPickerLauncher.launch(null) },
         onOpenContactsIncoming = { contactPickerViewModel.openContactPicker(ContactPickerType.INCOMING) },
         onOpenContactsOutgoing = { contactPickerViewModel.openContactPicker(ContactPickerType.OUTGOING) },
@@ -144,6 +150,7 @@ fun SettingsScreen(
             viewModel.refresh()
         },
         onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
+        onRemoveContact = { type, lookupKey -> contactPickerViewModel.removeSelectedContact(type, lookupKey) },
         onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
         modifier = modifier
     )
@@ -161,6 +168,8 @@ fun SettingsScreen(
  * @param onOpenContactsOutgoing Called to open picker for outgoing contacts.
  * @param onConfirmContacts      Called when contacts are confirmed from the dialog.
  * @param onDismissContacts      Called when we want to close the dialog without confirmation/saving.
+ * @param selectedContacts       The selected contacts for each direction, shown under the contact filter options.
+ * @param onRemoveContact        Called to remove one contact from the selected list of a direction.
  * @param onExportLogs           Called to export diagnostic logs using SAF.
  * @param modifier               Optional size/position modifier.
  */
@@ -176,6 +185,8 @@ fun SettingsContent(
     onConfirmContacts: (Set<String>) -> Unit,
     onDismissContacts: () -> Unit,
     onExportLogs: () -> Unit,
+    selectedContacts: SelectedContacts = SelectedContacts(),
+    onRemoveContact: (ContactPickerType, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -207,7 +218,9 @@ fun SettingsContent(
                     actions = actions,
                     onSelectFolder = onSelectFolder,
                     onOpenContactsIncoming = onOpenContactsIncoming,
-                    onOpenContactsOutgoing = onOpenContactsOutgoing
+                    onOpenContactsOutgoing = onOpenContactsOutgoing,
+                    selectedContacts = selectedContacts,
+                    onRemoveContact = onRemoveContact
                 )
             }
             item { AudioSection(preferences, updateTrigger, actions) }
@@ -536,6 +549,8 @@ private fun SecuritySection(preferences: AppPreferences, updateTrigger: Int, act
  *                               opens the [ContactSelectionDialog] via [ContactPickerViewModel].
  * @param onOpenContactsOutgoing Called when the user wants to pick outgoing contacts to ignore;
  *                               opens the [ContactSelectionDialog] via [ContactPickerViewModel].
+ * @param selectedContacts       The selected contacts for each direction.
+ * @param onRemoveContact        Called to remove one contact from the selected list of a direction.
  */
 @Composable
 private fun RecordingSection(
@@ -544,7 +559,9 @@ private fun RecordingSection(
     actions: SettingsActions,
     onSelectFolder: () -> Unit,
     onOpenContactsIncoming: () -> Unit,
-    onOpenContactsOutgoing: () -> Unit
+    onOpenContactsOutgoing: () -> Unit,
+    selectedContacts: SelectedContacts,
+    onRemoveContact: (ContactPickerType, String) -> Unit
 ) {
     val context = LocalContext.current
     
@@ -562,8 +579,6 @@ private fun RecordingSection(
     val ignoreContactsModeIncoming = remember(updateTrigger) { preferences.getIgnoreContactsModeIncoming() }
     val ignoreContactsModeOutgoing = remember(updateTrigger) { preferences.getIgnoreContactsModeOutgoing() }
     val ignoreCrossCountryOutgoing = remember(updateTrigger) { preferences.isIgnoreCrossCountryOutgoingEnabled() }
-    val ignoredContactsIncomingCount = remember(updateTrigger) { preferences.getIgnoredContactsIncoming().size }
-    val ignoredContactsOutgoingCount = remember(updateTrigger) { preferences.getIgnoredContactsOutgoing().size }
 
     var showFileNameFormatDialog by remember { mutableStateOf(false) }
 
@@ -713,9 +728,10 @@ private fun RecordingSection(
                 IgnoreContactsOptions(
                     label           = stringResource(R.string.settings_ignore_contacts_incoming),
                     selectedEnum     = ignoreContactsModeIncoming,
-                    selectedCount    = ignoredContactsIncomingCount,
+                    selectedContacts = selectedContacts.incoming,
                     onSelected      = { actions.setIgnoreContactsModeIncoming(it) },
-                    onSelectContacts = onOpenContactsIncoming
+                    onSelectContacts = onOpenContactsIncoming,
+                    onRemoveContact = { onRemoveContact(ContactPickerType.INCOMING, it) }
                 )
             }
         }
@@ -752,9 +768,10 @@ private fun RecordingSection(
                 IgnoreContactsOptions(
                     label           = stringResource(R.string.settings_ignore_contacts_outgoing),
                     selectedEnum     = ignoreContactsModeOutgoing,
-                    selectedCount    = ignoredContactsOutgoingCount,
+                    selectedContacts = selectedContacts.outgoing,
                     onSelected      = { actions.setIgnoreContactsModeOutgoing(it) },
-                    onSelectContacts = onOpenContactsOutgoing
+                    onSelectContacts = onOpenContactsOutgoing,
+                    onRemoveContact = { onRemoveContact(ContactPickerType.OUTGOING, it) }
                 )
             }
         }
@@ -1076,7 +1093,7 @@ private fun SettingsSection(title: String, content: @Composable ColumnScope.() -
  *
  * @param label           Label shown above the radio buttons.
  * @param selectedEnum     The currently active mode ("none", "all", or "selected").
- * @param selectedCount    The number of contacts currently selected
+ * @param selectedContacts The contacts currently selected, listed with a remove button each
  * @param onSelected      Called with the new active mode when the user taps a radio button.
  * @param onSelectContacts Called when the user taps the "Select Contacts" button; opens the
  *                        [ContactSelectionDialog] via [ContactPickerViewModel].
@@ -1085,9 +1102,10 @@ private fun SettingsSection(title: String, content: @Composable ColumnScope.() -
 private fun IgnoreContactsOptions(
     label: String,
     selectedEnum: AppPreferences.IgnoreContactsMode,
-    selectedCount: Int,
+    selectedContacts: List<ContactEntry>,
     onSelected: (AppPreferences.IgnoreContactsMode) -> Unit,
-    onSelectContacts: () -> Unit
+    onSelectContacts: () -> Unit,
+    onRemoveContact: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
@@ -1143,14 +1161,31 @@ private fun IgnoreContactsOptions(
                         shrinkTowards = Alignment.Top
                     )
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick  = onSelectContacts,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth(),
-                shape = MaterialTheme.shapes.small
-            ) { Text(stringResource(R.string.settings_select_contacts, selectedCount)) }
+            Column {
+                selectedContacts.forEach { contact ->
+                    ListItem(
+                        headlineContent = { Text(contact.name) },
+                        supportingContent = { Text(contact.displayNumbers) },
+                        leadingContent = { ContactAvatar(contact) },
+                        trailingContent = {
+                            IconButton(onClick = { onRemoveContact(contact.lookupKey) }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.settings_remove_contact, contact.name)
+                                )
+                            }
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick  = onSelectContacts,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small
+                ) { Text(stringResource(R.string.settings_add_contacts)) }
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ import com.kitsumed.shizucallrecorder.system.permissions.PermissionChecks
 import com.kitsumed.shizucallrecorder.ui.common.ContactSelectionDialog
 import com.kitsumed.shizucallrecorder.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
+import com.kitsumed.shizucallrecorder.ui.common.ContactListUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +47,17 @@ data class ContactPickerState(
     val type: ContactPickerType,
     val contacts: List<ContactEntry>,
     val selectedContactsLookupId: Set<String>
+)
+
+/**
+ * The selected contacts for each call direction, shown as a list in the settings screen.
+ *
+ * @param incoming Selected contacts for incoming calls.
+ * @param outgoing Selected contacts for outgoing calls.
+ */
+data class SelectedContacts(
+    val incoming: List<ContactEntry> = emptyList(),
+    val outgoing: List<ContactEntry> = emptyList()
 )
 
 /**
@@ -93,6 +105,44 @@ class ContactPickerViewModel(application: Application) : AndroidViewModel(applic
      * it back to `null` triggers a refresh (recompose) that closes it.
      */
     val contactPickerState: StateFlow<ContactPickerState?> = _contactPickerState.asStateFlow()
+
+    private val _selectedContacts = MutableStateFlow(SelectedContacts())
+
+    /** The saved selected contacts for each direction, resolved to device contacts (names, numbers, photo). */
+    val selectedContacts: StateFlow<SelectedContacts> = _selectedContacts.asStateFlow()
+
+    init {
+        refreshSelectedContacts()
+    }
+
+    /**
+     * Reloads [selectedContacts] from the saved settings and the device Contacts.
+     * Runs in the background so loading contacts doesn't freeze the screen.
+     */
+    fun refreshSelectedContacts() {
+        if (!PermissionChecks.hasContactsPermission(appContext)) return
+        viewModelScope.launch {
+            val contacts = loadContactsFromDevice()
+            _selectedContacts.value = SelectedContacts(
+                incoming = ContactListUtils.selectedEntries(contacts, preferences.getIgnoredContactsIncoming()),
+                outgoing = ContactListUtils.selectedEntries(contacts, preferences.getIgnoredContactsOutgoing())
+            )
+        }
+    }
+
+    /**
+     * Removes a single contact from the selected list of the given direction.
+     *
+     * @param type Whether to remove it from the incoming or outgoing list.
+     * @param lookupKey The lookup key of the contact to remove.
+     */
+    fun removeSelectedContact(type: ContactPickerType, lookupKey: String) {
+        when (type) {
+            ContactPickerType.INCOMING -> preferences.setIgnoredContactsIncoming(preferences.getIgnoredContactsIncoming() - lookupKey)
+            ContactPickerType.OUTGOING -> preferences.setIgnoredContactsOutgoing(preferences.getIgnoredContactsOutgoing() - lookupKey)
+        }
+        refreshSelectedContacts()
+    }
 
     /**
      * Opens the contact-picker dialog for either incoming or outgoing calls.
@@ -142,6 +192,7 @@ class ContactPickerViewModel(application: Application) : AndroidViewModel(applic
             null -> throw IllegalStateException("Contact picker state is null when trying to confirm selection. This should never happen.")
         }
         _contactPickerState.value = null
+        refreshSelectedContacts()
     }
 
     /** Closes the [ContactSelectionDialog] without saving any changes. */
