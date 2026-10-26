@@ -169,7 +169,8 @@ class InCallService : InCallService() {
 
 
             val rawCallData = RawCallData(
-                rawPhoneNumber = PhoneNumberManager.normalisePhoneNumber(rawNumber),
+                // Keep '*' and '#' so short codes (e.g. "*2700") can still match their contact
+                rawPhoneNumber = PhoneNumberManager.normaliseForContactLookup(rawNumber),
                 direction = direction,
                 osProvidedCallerName = osCallerName,
                 packageName = packageName,
