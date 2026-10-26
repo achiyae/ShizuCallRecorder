@@ -205,22 +205,24 @@ class RecordingDecisionEngine private constructor(context: Context) {
      * Determines whether a call from/to a specific phone number should be ignored
      * based on the user contact filtering preferences.
      *
+     * The decision itself is made by [ContactFilter]; this method only provides the Contacts lookups.
+     *
      * @param normalisedNumber The normalized phone number to check
-     * @param mode The contact ignore mode (NONE, ALL, or SELECTED)
-     * @param ignoredContactsLookupId Set of Contacts (lookup ID) to check against (for SELECTED mode)
+     * @param mode The contact ignore mode (NONE, ALL, SELECTED or RECORD_ONLY_SELECTED)
+     * @param selectedContactsLookupId Set of Contacts (lookup ID) to check against (for SELECTED and RECORD_ONLY_SELECTED modes)
      * @return true if the call should be ignored, false otherwise
      */
     private fun shouldIgnoreContact(
         normalisedNumber: String,
         mode: AppPreferences.IgnoreContactsMode,
-        ignoredContactsLookupId: Set<String>
+        selectedContactsLookupId: Set<String>
     ): Boolean {
 
         // Fix error when phone number is blank: https://github.com/kitsumed/ShizuCallRecorder/issues/95
         // For example, this could happen with third-party app that define text in the phone numbers field, these get stripped out by us
-        if (normalisedNumber.isBlank()) {
-            AppLogger.i( "Cannot determine if contact should be ignored: phone number is blank, returning false")
-            return false
+        val hasPhoneNumber = normalisedNumber.isNotBlank()
+        if (!hasPhoneNumber) {
+            AppLogger.i( "Cannot look up contact: phone number is blank")
         }
 
         val lookupUri = Uri.withAppendedPath(
@@ -229,13 +231,11 @@ class RecordingDecisionEngine private constructor(context: Context) {
         )
 
         try {
-            return when (mode) {
-                AppPreferences.IgnoreContactsMode.NONE -> false
-
-                AppPreferences.IgnoreContactsMode.ALL -> {
-                    if (!PermissionChecks.hasContactsPermission(appContext)) {
-                        return false
-                    }
+            return ContactFilter.shouldIgnore(
+                mode = mode,
+                hasPhoneNumber = hasPhoneNumber,
+                hasContactsPermission = PermissionChecks.hasContactsPermission(appContext),
+                isSavedContact = {
                     appContext.contentResolver.query(
                         lookupUri,
                         arrayOf(ContactsContract.PhoneLookup._ID),
@@ -245,15 +245,10 @@ class RecordingDecisionEngine private constructor(context: Context) {
                     )?.use { cursor ->
                         cursor.moveToFirst()
                     } ?: false
-                }
-
-                AppPreferences.IgnoreContactsMode.SELECTED -> {
-                    // If no contacts are selected, we can skip the query and return false directly
-                    if (!PermissionChecks.hasContactsPermission(appContext) || ignoredContactsLookupId.isEmpty()) {
-                        return false
-                    }
-
-                    appContext.contentResolver.query(
+                },
+                isSelectedContact = {
+                    // If no contacts are selected, we can skip the query
+                    selectedContactsLookupId.isNotEmpty() && (appContext.contentResolver.query(
                         lookupUri,
                         arrayOf(ContactsContract.PhoneLookup.LOOKUP_KEY),
                         null,
@@ -261,19 +256,15 @@ class RecordingDecisionEngine private constructor(context: Context) {
                         null
                     )?.use { cursor ->
                         val lookupIdIndex = cursor.getColumnIndexOrThrow(ContactsContract.PhoneLookup.LOOKUP_KEY)
-                        while (cursor.moveToNext()) {
-                            val contactLookupId = cursor.getString(lookupIdIndex)
-                            if (ignoredContactsLookupId.contains(contactLookupId)) {
-                                return true
-                            }
-                        }
-                    }
-                    false
-                }
-            }
+                        generateSequence { if (cursor.moveToNext()) cursor.getString(lookupIdIndex) else null }
+                            .any { selectedContactsLookupId.contains(it) }
+                    } ?: false)
+                },
+            )
         } catch (e: Exception) {
             AppLogger.e( "Error while checking contact ignore status for number: $normalisedNumber", e)
-            return false
+            // Ignore lists fail open (record), the record-only list fails closed (don't record)
+            return mode == AppPreferences.IgnoreContactsMode.RECORD_ONLY_SELECTED
         }
     }
 

@@ -195,6 +195,9 @@ dependencies {
     implementation(libs.libphonenumber)
     libphonenumberArtifact(libs.libphonenumber)
 
+    // Unit tests
+    testImplementation(libs.junit)
+
     // Shizuku
     implementation(libs.shizukuApi)
     implementation(libs.shizukuProvider)

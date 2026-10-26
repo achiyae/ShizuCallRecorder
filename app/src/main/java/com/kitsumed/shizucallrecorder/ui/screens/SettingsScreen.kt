@@ -1122,6 +1122,7 @@ private fun IgnoreContactsOptions(
                         AppPreferences.IgnoreContactsMode.NONE -> stringResource(R.string.settings_ignore_contacts_none)
                         AppPreferences.IgnoreContactsMode.ALL -> stringResource(R.string.settings_ignore_contacts_all)
                         AppPreferences.IgnoreContactsMode.SELECTED   -> stringResource(R.string.settings_ignore_contacts_selected)
+                        AppPreferences.IgnoreContactsMode.RECORD_ONLY_SELECTED -> stringResource(R.string.settings_ignore_contacts_record_only_selected)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(start = 12.dp)
@@ -1129,7 +1130,8 @@ private fun IgnoreContactsOptions(
             }
         }
         AnimatedVisibility(
-            visible = selectedEnum == AppPreferences.IgnoreContactsMode.SELECTED,
+            visible = selectedEnum == AppPreferences.IgnoreContactsMode.SELECTED ||
+                      selectedEnum == AppPreferences.IgnoreContactsMode.RECORD_ONLY_SELECTED,
             enter = fadeIn(animationSpec = tween(400)) +
                     expandVertically(
                         animationSpec = tween(400, easing = LinearOutSlowInEasing),

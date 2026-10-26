@@ -1,4 +1,5 @@
 [versions]
+junit = "4.13.2"
 # Core Android
 agp = "9.4.1"
 coreKtx = "1.19.1"
@@ -20,6 +21,7 @@ aboutlibraries = "15.3.0"
 libphonenumber = "9.0.42"
 
 [libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 # AndroidX Core & Lifecycle
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }

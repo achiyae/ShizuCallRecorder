@@ -147,7 +147,9 @@ class AppPreferences(context: Context) {
         /** Skip recording for all numbers that appear in the device's Contacts. */
         ALL("all"),
         /** Skip recording only for the numbers explicitly added to the ignore list. */
-        SELECTED("selected");
+        SELECTED("selected"),
+        /** Automatically record only the numbers explicitly added to the list; skip everything else. */
+        RECORD_ONLY_SELECTED("only_selected");
 
         companion object {
             /**
