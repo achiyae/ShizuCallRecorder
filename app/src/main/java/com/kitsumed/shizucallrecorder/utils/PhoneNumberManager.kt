@@ -75,6 +75,21 @@ class PhoneNumberManager private constructor(context: Context) {
             val digits  = trimmed.filter { it.isDigit() }
             return if (trimmed.startsWith("+")) "+$digits" else digits
         }
+
+        /**
+         * Normalizes a phone number for matching against the device Contacts.
+         *
+         * Same as [normalisePhoneNumber], but keeps '*' and '#' so that short codes and service numbers
+         * (e.g. "*2700") still match the contact they are saved under. Not suitable for file names.
+         */
+        fun normaliseForContactLookup(phoneNumber: String): String {
+            if (normalisePhoneNumber(phoneNumber).isEmpty()) {
+                return ""
+            }
+            val trimmed = phoneNumber.trim()
+            val dialChars = trimmed.filter { it.isDigit() || it == '*' || it == '#' }
+            return if (trimmed.startsWith("+")) "+$dialChars" else dialChars
+        }
     }
 
     /**

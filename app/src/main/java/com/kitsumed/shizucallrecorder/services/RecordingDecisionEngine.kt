@@ -83,7 +83,7 @@ class RecordingDecisionEngine private constructor(context: Context) {
         AppLogger.d( "Enriched call data: BestNumber=${enrichedData.getBestNumber()}, crossCountry=${enrichedData.isCrossCountry}")
 
         // Step 2: Evaluate recording decision
-        val shouldAutoRecord = shouldAutoRecord(enrichedData)
+        val shouldAutoRecord = shouldAutoRecord(enrichedData, PhoneNumberManager.normaliseForContactLookup(rawData.rawPhoneNumber))
         AppLogger.i( "Recording decision for ${enrichedData.direction} call is: shouldAutoRecord=$shouldAutoRecord")
 
         // Step 3: Fire appropriate Intent
@@ -113,14 +113,15 @@ class RecordingDecisionEngine private constructor(context: Context) {
      * - Contact-based filtering (ignore selected or all contacts)
      *
      * @param metadata The enriched call data to evaluate
+     * @param contactLookupNumber The number used to match Contacts, see [PhoneNumberManager.normaliseForContactLookup]
      * @return true if the call should be recorded, false if it should enter standby
      */
-    private fun shouldAutoRecord(metadata: EnrichedCallData): Boolean {
+    private fun shouldAutoRecord(metadata: EnrichedCallData, contactLookupNumber: String): Boolean {
         val isAnonymous = metadata.normalisedPhoneNumber.isBlank()
 
         return when (metadata.direction) {
-            CallDirection.INCOMING -> evaluateIncomingCall(metadata, metadata.normalisedPhoneNumber, isAnonymous)
-            CallDirection.OUTGOING -> evaluateOutgoingCall(metadata, metadata.normalisedPhoneNumber)
+            CallDirection.INCOMING -> evaluateIncomingCall(metadata, contactLookupNumber, isAnonymous)
+            CallDirection.OUTGOING -> evaluateOutgoingCall(metadata, contactLookupNumber)
         }
     }
 
